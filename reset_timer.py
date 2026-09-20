@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import sys
 import time
 import subprocess
@@ -164,6 +165,22 @@ _WININFO_JS = """
         oh: window.outerHeight,
         ih: window.innerHeight
     };
+})()
+"""
+
+# 从 FREE APP TIMER 卡片的文本里提取倒计时数值（如 "1 day 11:59" 或 "19:08"）
+# 不依赖具体 CSS class，基于语义定位，页面改版也不易失效。
+_COUNTDOWN_JS = """
+(function(){
+    var els = document.querySelectorAll('*');
+    for (var i = 0; i < els.length; i++) {
+        var t = (els[i].textContent || '').replace(/\\s+/g, ' ').trim();
+        if (t.indexOf('FREE APP TIMER') >= 0 && t.indexOf('until automatic stop') >= 0) {
+            var m = t.match(/(\\d+\\s+d[a-z]*\\b[^,]*|\\d{1,2}:\\d{2})/i);
+            if (m) return m[0];
+        }
+    }
+    return '';
 })()
 """
 
@@ -462,19 +479,21 @@ def renew(sb) -> bool:
     try:
         sb.refresh()
         time.sleep(4)
-        timer_text = sb.get_text('span.font-mono.text-xl')
+        timer_text = sb.execute_script(_COUNTDOWN_JS) or ""
         print(f"当前应用剩余时间: {timer_text}")
-        
-        if "2 days 23" in timer_text or "3 days" in timer_text:
+
+        # 成功标准：倒计时已重置到"天"级（如 1 day 11:59 / 3 days），
+        # 而续期前是"小时:分钟"级（如 19:08），因此出现 day 即代表续期成功。
+        if re.search(r"\b\d+\s+d[a-z]*\b", timer_text, re.IGNORECASE):
             print("续期任务圆满完成！")
             shot(sb, "99_续期成功_OK")
             send_tg_message("[OK]", "续期完成", timer_text)
             return True
         else:
-            print("倒计时似乎没有重置到最高值，请人工检查截图。")
+            print("倒计时似乎没有重置到天级，请人工检查截图。")
             shot(sb, "98_倒计时异常警告")
             send_tg_message("[!]", "续期异常(请检查)", timer_text)
-            return True 
+            return True
     except Exception as e:
         print(f"读取倒计时失败，但流程已执行完毕: {e}")
         shot(sb, "97_倒计时读取失败")
