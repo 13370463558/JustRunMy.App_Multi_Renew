@@ -477,9 +477,14 @@ def renew(sb) -> bool:
 
     print("验证最终倒计时状态...")
     try:
-        sb.refresh()
-        time.sleep(4)
-        timer_text = sb.execute_script(_COUNTDOWN_JS) or ""
+        # 不 refresh：提交后页面已自动更新倒计时(截图可见)。
+        # 直接轮询抓取，等 FREE APP TIMER 卡片渲染完成，避免 SPA 刷新后的骨架屏。
+        timer_text = ""
+        for attempt in range(12):
+            timer_text = sb.execute_script(_COUNTDOWN_JS) or ""
+            if timer_text:
+                break
+            time.sleep(1)
         print(f"当前应用剩余时间: {timer_text}")
 
         # 成功标准：倒计时已重置到"天"级（如 1 day 11:59 / 3 days），
