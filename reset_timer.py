@@ -262,6 +262,63 @@ def handle_turnstile(sb) -> bool:
     print("  Turnstile 6 次均失败")
     return False
 
+def click_by_text(sb, candidates, timeout=8, exact_only=False):
+    """忽略大小写地点击文本匹配的按钮/链接/role=button。
+
+    candidates : 候选文本列表(字符串)。优先精确匹配，再子串匹配。
+    exact_only : 为 True 时只做精确匹配(忽略大小写)。
+    返回 True 表示已点击；否则返回 False。会把页面元素文本打印到日志方便排查。
+    """
+    import time as _t
+    cands = [str(c).lower() for c in candidates]
+    selectors = ["button", "a", "[role='button']", "input[type='button']", "input[type='submit']"]
+
+    def _collect():
+        els = []
+        for sel in selectors:
+            try:
+                els.extend(sb.find_elements(sel))
+            except Exception:
+                continue
+        return els
+
+    def _text(el):
+        try:
+            return (el.text or "").strip()
+        except Exception:
+            return ""
+
+    end = _t.time() + timeout
+    while _t.time() < end:
+        els = _collect()
+        texts = [t for t in (_text(e) for e in els) if t]
+        if texts:
+            print(f"  页面元素文本: {texts}")
+        # 精确匹配
+        for el in els:
+            t = _text(el)
+            if t and t.lower() in cands:
+                try:
+                    el.click()
+                    print(f"  ✅ 点击成功: [{t}]")
+                    return True
+                except Exception as e:
+                    print(f"  点击 [{t}] 失败: {e}")
+        # 子串匹配
+        if not exact_only:
+            for el in els:
+                t = _text(el)
+                if t and any(c in t.lower() for c in cands):
+                    try:
+                        el.click()
+                        print(f"  ✅ 点击成功(子串): [{t}]")
+                        return True
+                    except Exception as e:
+                        print(f"  点击 [{t}] 失败: {e}")
+        _t.sleep(0.5)
+    return False
+
+
 def login(sb) -> bool:
     print(f"打开登录页面: {LOGIN_URL}")
     sb.uc_open_with_reconnect(LOGIN_URL, reconnect_time=5)
@@ -365,7 +422,8 @@ def renew(sb) -> bool:
     print("点击 Reset Timer 按钮...")
     try:
         shot(sb, "12_点击ResetTimer前")
-        sb.click('button:contains("Reset Timer")')
+        if not click_by_text(sb, ["Reset timer", "Reset Timer", "reset timer", "Reset"], timeout=8):
+            raise Exception("未匹配到 Reset timer 按钮")
         time.sleep(3)
         shot(sb, "13_点击ResetTimer后")
     except Exception as e:
@@ -387,7 +445,10 @@ def renew(sb) -> bool:
     print("点击 Just Reset 确认续期...")
     try:
         shot(sb, "16_确认弹窗打开")
-        sb.click('button:contains("Just Reset")')
+        if not click_by_text(sb, ["Just Reset", "Just reset", "just reset", "Confirm", "Reset"], timeout=8, exact_only=True):
+            # 精确匹配失败，退回到子串匹配（更宽松）
+            if not click_by_text(sb, ["just reset", "confirm", "reset"], timeout=5):
+                raise Exception("未匹配到 Just Reset 确认按钮")
         print("提交续期请求，等待服务器处理...")
         time.sleep(5)
         shot(sb, "17_已提交续期")
