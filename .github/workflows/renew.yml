@@ -3,7 +3,7 @@ name: JustRunMy 自动续期 (单账号精简版)
 on:
   workflow_dispatch:
   schedule:
-    # 每天北京时间 06:00 (UTC 22:00) 触发，触发后随机延迟 2~6 小时执行
+    # 每天北京时间 06:00 (UTC 22:00) 触发
     - cron: '0 22 * * *'
 
 jobs:
@@ -19,21 +19,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-
-    - name: ⏳ 随机延迟 (2~6 小时，模拟真实使用)
-      env:
-        RD: ${{ secrets.RD }}
-      run: |
-        if [ -n "$RD" ]; then
-          MIN=$(echo "$RD" | cut -d: -f1)
-          MAX=$(echo "$RD" | cut -d: -f2)
-        else
-          MIN=7200; MAX=21600
-        fi
-        DELAY=$(shuf -i $MIN-$MAX -n 1)
-        H=$(( DELAY / 3600 )); M=$(( (DELAY % 3600) / 60 ))
-        echo "✅ 随机延迟: ${H}h${M}m，之后执行续期"
-        sleep $DELAY
 
     - name: 🛡️ 启动 sing-box 代理
       env:
