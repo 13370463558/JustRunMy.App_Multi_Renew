@@ -20,8 +20,8 @@ TG_BOT_TOKEN = os.environ.get("TG_TOKEN")
 TG_CHAT_ID   = os.environ.get("TG_ID")
 
 if not EMAIL or not PASSWORD:
-    print("致命错误：未找到 EML 或 PWD 环境变量！")
-    print("请检查 GitHub Repository Secrets 是否配置正确（EML, PWD）。")
+    print("致命错误：未找到 EML_1 或 PWD_1 环境变量！")
+    print("请检查 GitHub Repository Secrets 是否配置正确（EML_1, PWD_1）。")
     sys.exit(1)
 
 # 全局变量，用于动态保存网页上抓取到的应用名称
