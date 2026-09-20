@@ -19,8 +19,8 @@
 
 | 变量名 (Name) | 是否必填 | 示例值 (Value) | 说明 |
 | :--- | :--- | :--- | :--- |
-| **ACC** | 是 | user@example.com | 账号邮箱（单账号） |
-| **ACC_PWD** | 是 | your_password | 账号密码（与 ACC 对应） |
+| **EML** | 是 | user@example.com | 账号邮箱（单账号） |
+| **PWD** | 是 | your_password | 账号密码（与 EML 对应） |
 | **PROXY_URL** | 否 | vless://uuid@host:port... | 代理链接 (支持 vless/vmess/tuic/hy2/anytls/socks5/http) |
 | **RD** | 否 | 7200:21600 | 随机延迟范围(秒)，格式 `"最小值:最大值"`，不设则默认 7200~21600(2~6小时) |
 | **TG_TOKEN** | 否 | 123456:ABC... | Telegram 机器人 Token |
@@ -39,7 +39,7 @@
 1. 在任务页面的 **[Artifacts]** 区域下载 `debug`。
 2. 查看压缩包内的 `.png` 截图，确认是网络超时还是验证码识别失败。
 3. **常见问题**：
-   - `未找到 ACC 或 ACC_PWD`：请检查 Secrets 命名是否为 `ACC` / `ACC_PWD`。
+   - `未找到 EML 或 PWD`：请检查 Secrets 命名是否为 `EML` / `PWD`。
    - `Turnstile 验证失败`：通常是代理质量不佳或 Cloudflare 策略更新，建议更换 PROXY_URL。
 
 ## 🌟 特别鸣谢

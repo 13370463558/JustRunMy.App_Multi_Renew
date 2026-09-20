@@ -72,8 +72,8 @@ jobs:
 
     - name: 🚀 运行账号续期
       env:
-        ACC: ${{ secrets.ACC }}
-        ACC_PWD: ${{ secrets.ACC_PWD }}
+        EML: ${{ secrets.EML }}
+        PWD: ${{ secrets.PWD }}
         TG_TOKEN: ${{ secrets.TG_TOKEN }}
         TG_ID: ${{ secrets.TG_ID }}
         PROXY_URL: ${{ secrets.PROXY_URL }}
