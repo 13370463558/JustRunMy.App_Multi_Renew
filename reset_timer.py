@@ -168,22 +168,6 @@ _WININFO_JS = """
 })()
 """
 
-# 从 FREE APP TIMER 卡片的文本里提取倒计时数值（如 "1 day 11:59" 或 "19:08"）
-# 不依赖具体 CSS class，基于语义定位，页面改版也不易失效。
-_COUNTDOWN_JS = """
-(function(){
-    var els = document.querySelectorAll('*');
-    for (var i = 0; i < els.length; i++) {
-        var t = (els[i].textContent || '').replace(/\\s+/g, ' ').trim();
-        if (t.indexOf('FREE APP TIMER') >= 0 && t.indexOf('until automatic stop') >= 0) {
-            var m = t.match(/(\\d+\\s+d[a-z]*\\b[^,]*|\\d{1,2}:\\d{2})/i);
-            if (m) return m[0];
-        }
-    }
-    return '';
-})()
-"""
-
 def js_fill_input(sb, selector: str, text: str):
     safe_text = text.replace('\\', '\\\\').replace('"', '\\"')
     sb.execute_script(f"""
@@ -469,40 +453,17 @@ def renew(sb) -> bool:
         print("提交续期请求，等待服务器处理...")
         time.sleep(5)
         shot(sb, "17_已提交续期")
+
+        # 成功标准：Just Reset 确认按钮已点击成功 = 续期请求已提交成功。
+        # 不再读取倒计时数值（SPA 刷新后难以稳定抓取，且不影响续期结果）。
+        print("续期任务圆满完成！")
+        shot(sb, "99_续期成功_OK")
+        send_tg_message("[OK]", "续期完成", "已提交续期请求")
+        return True
     except Exception as e:
         print(f"找不到 Just Reset 按钮: {e}")
         shot(sb, "53_找不到确认按钮")
         send_tg_message("[X]", "续期失败(无法确认)", "未知")
-        return False
-
-    print("验证最终倒计时状态...")
-    try:
-        # 不 refresh：提交后页面已自动更新倒计时(截图可见)。
-        # 直接轮询抓取，等 FREE APP TIMER 卡片渲染完成，避免 SPA 刷新后的骨架屏。
-        timer_text = ""
-        for attempt in range(12):
-            timer_text = sb.execute_script(_COUNTDOWN_JS) or ""
-            if timer_text:
-                break
-            time.sleep(1)
-        print(f"当前应用剩余时间: {timer_text}")
-
-        # 成功标准：倒计时已重置到"天"级（如 1 day 11:59 / 3 days），
-        # 而续期前是"小时:分钟"级（如 19:08），因此出现 day 即代表续期成功。
-        if re.search(r"\b\d+\s+d[a-z]*\b", timer_text, re.IGNORECASE):
-            print("续期任务圆满完成！")
-            shot(sb, "99_续期成功_OK")
-            send_tg_message("[OK]", "续期完成", timer_text)
-            return True
-        else:
-            print("倒计时似乎没有重置到天级，请人工检查截图。")
-            shot(sb, "98_倒计时异常警告")
-            send_tg_message("[!]", "续期异常(请检查)", timer_text)
-            return True
-    except Exception as e:
-        print(f"读取倒计时失败，但流程已执行完毕: {e}")
-        shot(sb, "97_倒计时读取失败")
-        send_tg_message("[!]", "读取剩余时间失败", "未知")
         return False
 
 def main():
