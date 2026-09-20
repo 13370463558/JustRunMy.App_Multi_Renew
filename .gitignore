@@ -1,0 +1,7 @@
+# 生成的临时文件
+config.json
+sing-box
+singbox.log
+*.png
+__pycache__/
+*.pyc

@@ -78,6 +78,26 @@ def parse_vless(parsed, params):
 
     # TLS / REALITY
     security = params.get("security", [""])[0]
+
+    # pcs 是部分客户端导出的 Reality public key 备选字段（与 pbk 同义）；
+    # 但注意：security=tls 的节点按纯 TLS 处理（可能使用自签名证书，配合 allowInsecure=1），
+    # 只有 security=reality（或 pbk 存在且 security 缺失）才启用 Reality 块。
+    pbk = params.get("pbk", [""])[0]
+    pcs = params.get("pcs", [""])[0]
+    if pcs and not pbk:
+        pbk = pcs
+
+    is_reality = (security == "reality") or (not security and bool(pbk))
+    if is_reality:
+        security = "reality"
+
+    # hex(64字符) 的 public key 转 base64（sing-box 只接受 base64，且不接受 "=" 填充）
+    if pbk and len(pbk) == 64 and all(c in "0123456789abcdefABCDEF" for c in pbk):
+        try:
+            pbk = base64.b64encode(bytes.fromhex(pbk)).decode().rstrip("=")
+        except Exception:
+            pass
+
     if security in ("tls", "reality"):
         tls = {"enabled": True}
 
@@ -93,13 +113,15 @@ def parse_vless(parsed, params):
         if alpn:
             tls["alpn"] = alpn.split(",")
 
-        insecure = params.get("insecure", params.get("allowInsecure", ["0"]))[0]
-        if insecure == "1":
+        # insecure / allowInsecure：部分节点用 allowInsecure=1（或两者都带，insecure=0 但 allowInsecure=1）
+        # 存在 allowInsecure=1 时强制 insecure=true，避免 x509 证书不匹配导致连接失败
+        allow_insecure = params.get("allowInsecure", ["0"])[0]
+        insecure = params.get("insecure", ["0"])[0]
+        if allow_insecure == "1" or insecure == "1":
             tls["insecure"] = True
 
         if security == "reality":
             reality = {"enabled": True}
-            pbk = params.get("pbk", [""])[0]
             if pbk:
                 reality["public_key"] = pbk
             sid = params.get("sid", [""])[0]
