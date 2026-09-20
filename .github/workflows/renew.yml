@@ -2,9 +2,9 @@ name: JustRunMy 自动续期 (单账号精简版)
 
 on:
   workflow_dispatch:
-  schedule:
+  # schedule:
     # 每天北京时间 06:00 (UTC 22:00) 触发
-    - cron: '0 22 * * *'
+    # - cron: '0 22 * * *'
 
 jobs:
   renew:
