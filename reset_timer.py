@@ -15,13 +15,13 @@ DOMAIN    = "justrunmy.app"
 #  环境变量与全局变量
 # ============================================================
 EMAIL        = os.environ.get("EML")
-PASSWORD     = os.environ.get("PWD")
+PASSWORD     = os.environ.get("EMLP")   # 注意：PWD 是 shell 保留变量(工作目录)，会冲突，故改名 EMLP
 TG_BOT_TOKEN = os.environ.get("TG_TOKEN")
 TG_CHAT_ID   = os.environ.get("TG_ID")
 
 if not EMAIL or not PASSWORD:
-    print("致命错误：未找到 EML_1 或 PWD_1 环境变量！")
-    print("请检查 GitHub Repository Secrets 是否配置正确（EML_1, PWD_1）。")
+    print("致命错误：未找到 EML 或 EMLP 环境变量！")
+    print("请检查 GitHub Repository Secrets 是否配置正确（EML_1, EMLP）。")
     sys.exit(1)
 
 # 全局变量，用于动态保存网页上抓取到的应用名称
