@@ -28,6 +28,39 @@ if not EMAIL or not PASSWORD:
 DYNAMIC_APP_NAME = "未知应用"
 
 # ============================================================
+#  截图模块：每个重要步骤都保存一张截图
+#  （存入 screenshots/ 目录，文件名带时间戳，避免互相覆盖）
+# ============================================================
+SHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
+SHOT_SEQ = 0  # 递增序号，保证截图顺序
+
+def init_shot_dir():
+    os.makedirs(SHOT_DIR, exist_ok=True)
+
+def shot(sb, tag: str):
+    """保存一张截图。tag 为步骤说明（如 login_page、login_ok）。"""
+    global SHOT_SEQ
+    SHOT_SEQ += 1
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(SHOT_DIR, f"{SHOT_SEQ:02d}_{ts}_{tag}.png")
+    try:
+        sb.save_screenshot(path)
+        print(f"  📸 截图已保存: {path}")
+    except Exception as e:
+        print(f"  ⚠️ 截图失败({tag}): {e}")
+
+def list_shots():
+    print("\n========================================")
+    print("本次运行生成的截图清单:")
+    print("========================================")
+    try:
+        files = sorted(os.listdir(SHOT_DIR))
+        for f in files:
+            print(f"  {os.path.join(SHOT_DIR, f)}")
+    except Exception as e:
+        print(f"  读取截图目录失败: {e}")
+
+# ============================================================
 #  Telegram 推送模块
 # ============================================================
 def send_tg_message(status_icon, status_text, time_left):
@@ -234,11 +267,13 @@ def login(sb) -> bool:
     sb.uc_open_with_reconnect(LOGIN_URL, reconnect_time=5)
     time.sleep(4)
 
+    shot(sb, "02_登录页加载")
+
     try:
         sb.wait_for_element('input[name="Email"]', timeout=15)
     except Exception:
         print("页面未加载出登录表单")
-        sb.save_screenshot("login_load_fail.png")
+        shot(sb, "03_登录表单加载失败")
         return False
 
     print("关闭可能的 Cookie 弹窗...")
@@ -258,14 +293,17 @@ def login(sb) -> bool:
     print("填写密码...")
     js_fill_input(sb, 'input[name="Password"]', PASSWORD)
     time.sleep(1)
+    shot(sb, "04_已填写邮箱密码")
 
     if sb.execute_script(_EXISTS_JS):
         if not handle_turnstile(sb):
             print("登录界面的 Turnstile 验证失败")
-            sb.save_screenshot("login_turnstile_fail.png")
+            shot(sb, "05_登录turnstile失败")
             return False
+        shot(sb, "05_登录turnstile通过")
     else:
         print("未检测到 Turnstile")
+        shot(sb, "05_无turnstile直接提交")
 
     print("敲击回车提交表单...")
     sb.press_keys('input[name="Password"]', '\n')
@@ -278,10 +316,11 @@ def login(sb) -> bool:
 
     if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
         print("登录成功！")
+        shot(sb, "06_登录成功")
         return True
         
     print("登录失败，页面没有跳转。")
-    sb.save_screenshot("login_failed.png")
+    shot(sb, "07_登录失败")
     return False
 
 def renew(sb) -> bool:
@@ -291,8 +330,10 @@ def renew(sb) -> bool:
     print("="*50)
     
     print("进入控制面板: https://justrunmy.app/panel")
+    shot(sb, "08_打开控制面板")
     sb.open("https://justrunmy.app/panel")
     time.sleep(5)
+    shot(sb, "09_控制面板加载")
 
     print("自动读取应用名称...")
     retry_count = 3
@@ -302,10 +343,12 @@ def renew(sb) -> bool:
             sb.wait_for_element('h3.font-semibold', timeout=15)
             DYNAMIC_APP_NAME = sb.get_text('h3.font-semibold')
             print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+            shot(sb, "10_应用卡片定位")
             
             sb.click('h3.font-semibold')
             time.sleep(3)
             print(f"成功进入应用详情页: {sb.get_current_url()}")
+            shot(sb, "11_应用详情页")
             found = True
             break
         except Exception as e:
@@ -315,36 +358,42 @@ def renew(sb) -> bool:
                 time.sleep(5)
     
     if not found:
-        sb.save_screenshot("renew_app_not_found.png")
+        shot(sb, "50_找不到应用卡片")
         send_tg_message("[X]", "续期失败(找不到应用)", "未知")
         return False
 
     print("点击 Reset Timer 按钮...")
     try:
+        shot(sb, "12_点击ResetTimer前")
         sb.click('button:contains("Reset Timer")')
         time.sleep(3)
+        shot(sb, "13_点击ResetTimer后")
     except Exception as e:
         print(f"找不到 Reset Timer 按钮: {e}")
-        sb.save_screenshot("renew_reset_btn_not_found.png")
+        shot(sb, "51_找不到ResetTimer按钮")
         send_tg_message("[X]", "续期失败(找不到按钮)", "未知")
         return False
 
     print("检查续期弹窗内是否需要 CF 验证...")
+    shot(sb, "14_续期弹窗")
     if sb.execute_script(_EXISTS_JS):
         if not handle_turnstile(sb):
             print("弹窗内的 Turnstile 验证失败")
-            sb.save_screenshot("renew_turnstile_fail.png")
+            shot(sb, "52_弹窗turnstile失败")
             send_tg_message("[X]", "续期失败(人机验证未过)", "未知")
             return False
+        shot(sb, "15_弹窗turnstile通过")
 
     print("点击 Just Reset 确认续期...")
     try:
+        shot(sb, "16_确认弹窗打开")
         sb.click('button:contains("Just Reset")')
         print("提交续期请求，等待服务器处理...")
-        time.sleep(5) 
+        time.sleep(5)
+        shot(sb, "17_已提交续期")
     except Exception as e:
         print(f"找不到 Just Reset 按钮: {e}")
-        sb.save_screenshot("renew_just_reset_not_found.png")
+        shot(sb, "53_找不到确认按钮")
         send_tg_message("[X]", "续期失败(无法确认)", "未知")
         return False
 
@@ -357,17 +406,17 @@ def renew(sb) -> bool:
         
         if "2 days 23" in timer_text or "3 days" in timer_text:
             print("续期任务圆满完成！")
-            sb.save_screenshot("renew_success.png")
+            shot(sb, "99_续期成功_OK")
             send_tg_message("[OK]", "续期完成", timer_text)
             return True
         else:
             print("倒计时似乎没有重置到最高值，请人工检查截图。")
-            sb.save_screenshot("renew_warning.png")
+            shot(sb, "98_倒计时异常警告")
             send_tg_message("[!]", "续期异常(请检查)", timer_text)
             return True 
     except Exception as e:
         print(f"读取倒计时失败，但流程已执行完毕: {e}")
-        sb.save_screenshot("renew_timer_read_fail.png")
+        shot(sb, "97_倒计时读取失败")
         send_tg_message("[!]", "读取剩余时间失败", "未知")
         return False
 
@@ -375,6 +424,8 @@ def main():
     print("=" * 50)
     print("   JustRunMy.app 自动登录与续期脚本")
     print("=" * 50)
+    
+    init_shot_dir()
     
     proxy_url_env = os.environ.get("PROXY_URL", "").strip()
     sb_kwargs = {"uc": True, "test": True, "headless": False}
@@ -386,9 +437,11 @@ def main():
     
     with SB(**sb_kwargs) as sb:
         print("浏览器已启动")
+        shot(sb, "00_浏览器已启动")
         try:
             sb.open("https://api.ipify.org/?format=json")
             print(f"当前出口 IP: {sb.get_text('body')}")
+            shot(sb, "01_出口IP")
         except Exception:
             pass
 
@@ -396,7 +449,10 @@ def main():
             renew(sb)
         else:
             print("\n登录环节失败，终止后续续期操作。")
+            shot(sb, "70_登录失败_终止")
             send_tg_message("[X]", "登录失败", "未知")
+    
+    list_shots()
 
 if __name__ == "__main__":
     main()
